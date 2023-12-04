@@ -68,9 +68,11 @@ pub fn part2(input: Vec<Cards>) -> usize {
             0 => (),
             n => {
                 let id = *id as usize;
-                for i in id + 1..=id + n {
-                    buffer[i] += current_num;
-                }
+                buffer
+                    .iter_mut()
+                    .take(id + n + 1)
+                    .skip(id + 1)
+                    .for_each(|i| *i += current_num)
             }
         }
     }
