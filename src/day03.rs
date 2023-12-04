@@ -1,6 +1,5 @@
 use num::complex::Complex;
 use std::collections::{HashMap, HashSet};
-use winnow::Parser;
 type Coord = Complex<isize>;
 
 type Symbols = HashMap<Coord, char>;
