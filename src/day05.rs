@@ -6,6 +6,70 @@ use winnow::{PResult, Parser};
 
 type Map = (String, String, Vec<Mapping>);
 
+trait Offset {
+    fn offset(&self, offset: isize) -> Self;
+}
+
+impl Offset for Range<isize> {
+    fn offset(&self, offset: isize) -> Self {
+        Range {
+            start: self.start + offset,
+            end: self.end + offset,
+        }
+    }
+}
+trait Intersection {
+    fn intersect_remainder(
+        &self,
+        other: &Range<isize>,
+    ) -> (Option<Range<isize>>, Option<Vec<Range<isize>>>);
+}
+
+impl Intersection for Range<isize> {
+    /// intersection of the ranges, remainder of self
+    fn intersect_remainder(
+        &self,
+        other: &Range<isize>,
+    ) -> (Option<Range<isize>>, Option<Vec<Range<isize>>>) {
+        let (intersection, remainder);
+        // no intersection
+        if self.start >= other.end || self.end < other.start {
+            intersection = None;
+            remainder = Some(vec![self.clone()]);
+        } else if self.start < other.start {
+            // other included in self
+            if self.end > other.end {
+                intersection = Some(other.clone());
+                remainder = Some(vec![self.start..other.start, other.end..self.end]);
+            } else {
+                // self.end <= other.end
+                intersection = Some(other.start..self.end);
+                remainder = Some(vec![self.start..other.start]);
+            }
+        } else if self.start > other.start {
+            // self included in other
+            if self.end <= other.end {
+                intersection = Some(self.clone());
+                remainder = None;
+            } else {
+                //self.end > other.end
+                intersection = Some(self.start..other.end);
+                remainder = Some(vec![other.end..self.end])
+            }
+        } else {
+            // self.start == other.start
+            if self.end <= other.end {
+                intersection = Some(self.clone());
+                remainder = None;
+            } else {
+                //self.end > other.end
+                intersection = Some(self.start..other.end);
+                remainder = Some(vec![other.end..self.end]);
+            }
+        }
+        (intersection, remainder)
+    }
+}
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Mapping {
@@ -85,6 +149,54 @@ pub fn part1((seeds, maps): (Vec<isize>, Vec<Map>)) -> isize {
     }
 }
 
+fn next_parts_p2(parts: &Vec<Range<isize>>, maps: &Vec<Mapping>) -> Vec<Range<isize>> {
+    let mut res = Vec::new();
+    let mut parts = parts.clone();
+
+    while let Some(current_part) = parts.pop() {
+        dbg!(&current_part);
+        for m in maps {
+            match current_part.intersect_remainder(&m.source) {
+                (None, _) => {
+                    continue;
+                }
+                (Some(x), None) => {
+                    res.push(x.offset(m.offset));
+                    break;
+                }
+                (Some(x), Some(rem)) => {
+                    res.push(x.offset(m.offset));
+                    for r in rem {
+                        parts.push(r);
+                    }
+                    break;
+                }
+            }
+        }
+        res.push(current_part);
+    }
+
+    res
+}
+
+pub fn part2((seeds, maps): (Vec<isize>, Vec<Map>)) -> isize {
+    let mut new_seeds = Vec::new();
+    dbg!(&new_seeds);
+    dbg!(&seeds);
+    while let Some((x, y)) = seeds.clone().into_iter().next_tuple() {
+        new_seeds.push(x..x + y);
+    }
+    dbg!(&new_seeds);
+    for (_, _, map) in maps {
+        new_seeds = next_parts_p2(&new_seeds, &map);
+        dbg!(&new_seeds);
+    }
+    if let Some(m) = new_seeds.iter().min_by_key(|x| x.start) {
+        m.start
+    } else {
+        panic!("no result")
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -93,6 +205,41 @@ mod tests {
     use super::*;
     use indoc::indoc;
     use pretty_assertions::assert_eq;
+
+    #[test]
+    fn test_intersect_remainder() {
+        let me = 0isize..2;
+        let other = 0isize..2;
+        assert_eq!(me.intersect_remainder(&other), (Some(0..2), None));
+        let me = 0isize..1;
+        let other = 0isize..2;
+        assert_eq!(me.intersect_remainder(&other), (Some(0..1), None));
+        let me = 0isize..3;
+        let other = 0isize..2;
+        assert_eq!(
+            me.intersect_remainder(&other),
+            (Some(0..2), Some(vec![2..3]))
+        );
+        let me = -1isize..3;
+        let other = 0isize..2;
+        assert_eq!(
+            me.intersect_remainder(&other),
+            (Some(0..2), Some(vec![-1..0, 2..3]))
+        );
+        let me = 2isize..3;
+        let other = 0isize..2;
+        assert_eq!(me.intersect_remainder(&other), (None, Some(vec![2..3])));
+        let me = 2isize..3;
+        let other = 0isize..1;
+        assert_eq!(me.intersect_remainder(&other), (None, Some(vec![2..3])));
+    }
+    #[test]
+    fn test_offset() {
+        let me = 0isize..2;
+        assert_eq!(me.offset(1), 1..3);
+        assert_eq!(me.offset(-1), -1..1);
+        assert_eq!(me.offset(0), 0..2);
+    }
 
     #[test]
     fn test_part1() {
@@ -134,6 +281,48 @@ mod tests {
         let (seeds, blocks) = parse_input(input);
         let result = part1((seeds, blocks));
         assert_eq!(result, 35);
+    }
+
+    #[test]
+    fn test_part2() {
+        let input = indoc! {
+          "seeds: 79 14 55 13
+
+          seed-to-soil map:
+          50 98 2
+          52 50 48
+          
+          soil-to-fertilizer map:
+          0 15 37
+          37 52 2
+          39 0 15
+          
+          fertilizer-to-water map:
+          49 53 8
+          0 11 42
+          42 0 7
+          57 7 4
+          
+          water-to-light map:
+          88 18 7
+          18 25 70
+          
+          light-to-temperature map:
+          45 77 23
+          81 45 19
+          68 64 13
+          
+          temperature-to-humidity map:
+          0 69 1
+          1 0 69
+          
+          humidity-to-location map:
+          60 56 37
+          56 93 4"
+        };
+        let (seeds, blocks) = parse_input(input);
+        let result = part2((seeds, blocks));
+        assert_eq!(result, 46);
     }
 
     #[test]
