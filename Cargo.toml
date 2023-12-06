@@ -15,3 +15,7 @@ winnow = "0.5.19"
 [dev-dependencies]
 indoc = "2.0.4"
 pretty_assertions = "1.4.0"
+
+[profile.release]
+lto = true        # Link-time optimization.
+codegen-units = 1 # Slower compilation but faster code.
