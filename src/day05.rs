@@ -31,11 +31,13 @@ impl Intersection for Range<isize> {
         &self,
         other: &Range<isize>,
     ) -> (Option<Range<isize>>, Option<Vec<Range<isize>>>) {
+        #![allow(clippy::single_range_in_vec_init)]
         let (intersection, remainder);
         // no intersection
-        if self.start >= other.end || self.end < other.start {
+        if self.is_empty() || other.is_empty() || self.start >= other.end || self.end < other.start
+        {
             intersection = None;
-            remainder = Some(vec![self.clone()]);
+            remainder = None;
         } else if self.start < other.start {
             // other included in self
             if self.end > other.end {
@@ -65,6 +67,11 @@ impl Intersection for Range<isize> {
                 //self.end > other.end
                 intersection = Some(self.start..other.end);
                 remainder = Some(vec![other.end..self.end]);
+            }
+        }
+        if let Some(int) = &intersection {
+            if int.is_empty() {
+                return (None, None);
             }
         }
         (intersection, remainder)
@@ -124,15 +131,13 @@ fn next_parts(parts: &Vec<isize>, maps: &Vec<Mapping>) -> Vec<isize> {
     let mut res = Vec::with_capacity(parts.len());
     let mut parts = parts.clone();
     for m in maps {
-        parts
-            // .into_iter()
-            .retain(|part| {
-                if m.source.contains(part) {
-                    res.push(part + m.offset);
-                    return false;
-                }
-                true
-            });
+        parts.retain(|part| {
+            if m.source.contains(part) {
+                res.push(part + m.offset);
+                return false;
+            }
+            true
+        });
     }
     ([res, parts]).concat()
 }
@@ -149,12 +154,12 @@ pub fn part1((seeds, maps): (Vec<isize>, Vec<Map>)) -> isize {
     }
 }
 
-fn next_parts_p2(parts: &Vec<Range<isize>>, maps: &Vec<Mapping>) -> Vec<Range<isize>> {
+fn next_parts_p2(parts: &[Range<isize>], maps: &Vec<Mapping>) -> Vec<Range<isize>> {
     let mut res = Vec::new();
-    let mut parts = parts.clone();
+    let mut parts = parts.to_owned();
 
     while let Some(current_part) = parts.pop() {
-        dbg!(&current_part);
+        let mut intersect = false;
         for m in maps {
             match current_part.intersect_remainder(&m.source) {
                 (None, _) => {
@@ -162,18 +167,24 @@ fn next_parts_p2(parts: &Vec<Range<isize>>, maps: &Vec<Mapping>) -> Vec<Range<is
                 }
                 (Some(x), None) => {
                     res.push(x.offset(m.offset));
+                    intersect = true;
                     break;
                 }
                 (Some(x), Some(rem)) => {
                     res.push(x.offset(m.offset));
                     for r in rem {
-                        parts.push(r);
+                        if !r.is_empty() {
+                            parts.push(r);
+                        }
                     }
+                    intersect = true;
                     break;
                 }
             }
         }
-        res.push(current_part);
+        if !intersect {
+            res.push(current_part);
+        }
     }
 
     res
@@ -181,15 +192,12 @@ fn next_parts_p2(parts: &Vec<Range<isize>>, maps: &Vec<Mapping>) -> Vec<Range<is
 
 pub fn part2((seeds, maps): (Vec<isize>, Vec<Map>)) -> isize {
     let mut new_seeds = Vec::new();
-    dbg!(&new_seeds);
-    dbg!(&seeds);
-    while let Some((x, y)) = seeds.clone().into_iter().next_tuple() {
+    let mut iter = seeds.clone().into_iter();
+    while let Some((x, y)) = iter.next_tuple() {
         new_seeds.push(x..x + y);
     }
-    dbg!(&new_seeds);
     for (_, _, map) in maps {
         new_seeds = next_parts_p2(&new_seeds, &map);
-        dbg!(&new_seeds);
     }
     if let Some(m) = new_seeds.iter().min_by_key(|x| x.start) {
         m.start
@@ -228,10 +236,10 @@ mod tests {
         );
         let me = 2isize..3;
         let other = 0isize..2;
-        assert_eq!(me.intersect_remainder(&other), (None, Some(vec![2..3])));
+        assert_eq!(me.intersect_remainder(&other), (None, None));
         let me = 2isize..3;
         let other = 0isize..1;
-        assert_eq!(me.intersect_remainder(&other), (None, Some(vec![2..3])));
+        assert_eq!(me.intersect_remainder(&other), (None, None));
     }
     #[test]
     fn test_offset() {
@@ -421,7 +429,7 @@ mod tests {
     }
     #[test]
     fn test_parse_input() {
-        let mut input = indoc! {
+        let input = indoc! {
         "seeds: 79 14 55 13
         
         seed-to-soil map:
