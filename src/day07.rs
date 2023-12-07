@@ -149,9 +149,13 @@ pub fn parse_input(input: &str) -> Vec<(Hand, Vec<Card>, usize)> {
 }
 
 fn replace_joker(original_cards: &str) -> Hand {
-    let to_replace = "23456789TQKA".chars();
+    if !original_cards.contains('J') {
+        return original_cards.parse().unwrap();
+    }
+    let mut to_replace: Vec<_> = original_cards.chars().collect();
+    to_replace.retain(|x| x != &'J');
     let mut current_max = Hand::HighCard;
-    for c in to_replace {
+    for c in to_replace.into_iter().unique() {
         let cards = original_cards.to_owned();
         let h = cards.replace('J', &c.to_string()).parse().unwrap();
         current_max = current_max.max(h);
