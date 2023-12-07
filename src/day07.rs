@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use anyhow::Result;
 use itertools::Itertools;
 
@@ -152,8 +154,10 @@ fn replace_joker(original_cards: &str) -> Hand {
     if !original_cards.contains('J') {
         return original_cards.parse().unwrap();
     }
-    let mut to_replace: Vec<_> = original_cards.chars().collect();
-    to_replace.retain(|x| x != &'J');
+    let to_replace: HashSet<_> = original_cards.chars().filter(|x| x != &'J').collect();
+    if to_replace.is_empty() {
+        return Hand::FiveOfAKind;
+    }
     let mut current_max = Hand::HighCard;
     for c in to_replace.into_iter().unique() {
         let cards = original_cards.to_owned();
