@@ -154,7 +154,7 @@ mod test {
             .664.598.."
         };
         let (symbols, numbers) = parse_input(input);
-        let expected_symbols = HashMap::from([
+        let expected_symbols = HashMap::from_iter([
             (Complex { re: 5, im: 8 }, '*'),
             (Complex { re: 3, im: 1 }, '*'),
             (Complex { re: 6, im: 3 }, '#'),
