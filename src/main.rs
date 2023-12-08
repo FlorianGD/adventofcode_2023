@@ -1,4 +1,4 @@
-use adventofcode_2023::{day01, day02, day03, day04, day05, day06, day07};
+use adventofcode_2023::{day01, day02, day03, day04, day05, day06, day07, day08};
 use anyhow::Result;
 use aoc_next::{aoc_main, parser, solution, solver, Aoc};
 
@@ -20,6 +20,7 @@ const AOC: Aoc = Aoc {
         solution! {6, parser!{ day06::parse_input_p2 }, solver!{ day06::part1 }},
         solution! {7, parser!{ day07::parse_input }, solver!{ day07::part1 }},
         solution! {7, parser!{ day07::parse_input_p2 }, solver!{ day07::part2 }},
+        solution! {8, parser!{ day08::parse_input }, solver!{ day08::part1 }},
     ],
 };
 
