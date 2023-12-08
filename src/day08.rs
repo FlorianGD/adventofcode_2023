@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::HashMap;
 
 use num::integer::lcm;
 use winnow::ascii::line_ending;
@@ -41,20 +41,20 @@ fn step(input: &mut &str) -> PResult<(String, (String, String))> {
     Ok((start.to_string(), (left.to_string(), right.to_string())))
 }
 
-pub fn parse_input(input: &str) -> (Vec<Dir>, BTreeMap<String, (String, String)>) {
+pub fn parse_input(input: &str) -> (Vec<Dir>, HashMap<String, (String, String)>) {
     let mut input = input;
     let dirs = terminated(directions, (line_ending, line_ending))
         .parse_next(&mut input)
         .unwrap();
     let steps: Vec<(String, (String, String))> = repeat(1.., step).parse_next(&mut input).unwrap();
-    (dirs, BTreeMap::from_iter(steps))
+    (dirs, HashMap::from_iter(steps))
 }
 
-pub fn part1((directions, steps): (Vec<Dir>, BTreeMap<String, (String, String)>)) -> usize {
+pub fn part1((directions, steps): (Vec<Dir>, HashMap<String, (String, String)>)) -> usize {
     solve(&directions, &steps, "AAA")
 }
 
-fn solve(directions: &[Dir], steps: &BTreeMap<String, (String, String)>, start: &str) -> usize {
+fn solve(directions: &[Dir], steps: &HashMap<String, (String, String)>, start: &str) -> usize {
     let mut cycle = directions.iter().cycle();
     let mut pos = start.to_string();
     let mut num_steps = 0;
@@ -70,7 +70,7 @@ fn solve(directions: &[Dir], steps: &BTreeMap<String, (String, String)>, start: 
     num_steps
 }
 
-fn all_exits(directions: &[Dir], steps: &BTreeMap<String, (String, String)>) -> Vec<usize> {
+fn all_exits(directions: &[Dir], steps: &HashMap<String, (String, String)>) -> Vec<usize> {
     steps
         .keys()
         .filter(|k| k.ends_with('A'))
@@ -78,7 +78,7 @@ fn all_exits(directions: &[Dir], steps: &BTreeMap<String, (String, String)>) -> 
         .collect()
 }
 
-pub fn part2((directions, steps): (Vec<Dir>, BTreeMap<String, (String, String)>)) -> usize {
+pub fn part2((directions, steps): (Vec<Dir>, HashMap<String, (String, String)>)) -> usize {
     let exits = all_exits(&directions, &steps);
     exits.into_iter().reduce(lcm).unwrap()
 }
@@ -105,7 +105,8 @@ mod test {
         "
         };
         let (directions, steps) = parse_input(input);
-        let all = all_exits(&directions, &steps);
+        let mut all = all_exits(&directions, &steps);
+        all.sort();
         assert_eq!(all, vec![2, 3]);
     }
 
@@ -181,7 +182,7 @@ mod test {
         assert_eq!(dirs, vec![Dir::Right, Dir::Left]);
         assert_eq!(
             steps,
-            BTreeMap::from_iter(vec![
+            HashMap::from_iter(vec![
                 ("AAA".to_string(), ("BBB".to_string(), "CCC".to_string())),
                 ("BBB".to_string(), ("DDD".to_string(), "EEE".to_string())),
                 ("CCC".to_string(), ("ZZZ".to_string(), "GGG".to_string())),
