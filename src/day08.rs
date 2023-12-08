@@ -1,9 +1,12 @@
 use std::collections::BTreeMap;
 
+use num::integer::lcm;
 use winnow::ascii::line_ending;
 use winnow::combinator::{alt, delimited, preceded, repeat, terminated};
 use winnow::token::take;
 use winnow::{PResult, Parser};
+
+const MAX_STEPS: usize = 25_000;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Dir {
@@ -50,10 +53,19 @@ pub fn parse_input(input: &str) -> (Vec<Dir>, BTreeMap<String, (String, String)>
 }
 
 pub fn part1((directions, steps): (Vec<Dir>, BTreeMap<String, (String, String)>)) -> usize {
-    let mut cycle = directions.into_iter().cycle();
-    let mut pos = "AAA".to_string();
+    solve(&directions, &steps, "AAA", "ZZZ")
+}
+
+fn solve(
+    directions: &[Dir],
+    steps: &BTreeMap<String, (String, String)>,
+    start: &str,
+    end: &str,
+) -> usize {
+    let mut cycle = directions.iter().cycle();
+    let mut pos = start.to_string();
     let mut num_steps = 0;
-    while &pos != "ZZZ" {
+    while pos != end && num_steps < MAX_STEPS {
         let possible = &steps[&pos];
         pos = match cycle.next() {
             Some(Dir::Left) => possible.0.to_string(),
@@ -65,11 +77,109 @@ pub fn part1((directions, steps): (Vec<Dir>, BTreeMap<String, (String, String)>)
     num_steps
 }
 
+fn exits_for_one_node(
+    node: &str,
+    exits: &[String],
+    directions: &[Dir],
+    steps: &BTreeMap<String, (String, String)>,
+) -> usize {
+    exits
+        .iter()
+        .map(|end| solve(directions, steps, node, end))
+        .filter(|val| val != &MAX_STEPS)
+        // this works, because in fact, there is only one exit possible per entry
+        .max()
+        .unwrap()
+}
+
+fn all_exits(directions: &[Dir], steps: &BTreeMap<String, (String, String)>) -> Vec<usize> {
+    let exits: Vec<String> = steps
+        .keys()
+        .filter(|k| k.ends_with('Z'))
+        .map(|x| x.to_string())
+        .collect();
+    steps
+        .keys()
+        .filter(|k| k.ends_with('A'))
+        .map(|x| x.to_string())
+        .map(|node| exits_for_one_node(&node, &exits, directions, steps))
+        .collect()
+}
+
+pub fn part2((directions, steps): (Vec<Dir>, BTreeMap<String, (String, String)>)) -> usize {
+    let exits = all_exits(&directions, &steps);
+    exits.into_iter().reduce(lcm).unwrap()
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
     use indoc::indoc;
     use pretty_assertions::assert_eq;
+
+    #[test]
+    fn test_all_exits() {
+        let input = indoc! {
+        "LR
+
+        11A = (11B, XXX)
+        11B = (XXX, 11Z)
+        11Z = (11B, XXX)
+        22A = (22B, XXX)
+        22B = (22C, 22C)
+        22C = (22Z, 22Z)
+        22Z = (22B, 22B)
+        XXX = (XXX, XXX)
+        "
+        };
+        let (directions, steps) = parse_input(input);
+        let all = all_exits(&directions, &steps);
+        assert_eq!(all, vec![2, 3]);
+    }
+
+    #[test]
+    fn test_exits() {
+        let input = indoc! {
+            "LR
+
+            11A = (11B, XXX)
+            11B = (XXX, 11Z)
+            11Z = (11B, XXX)
+            22A = (22B, XXX)
+            22B = (22C, 22C)
+            22C = (22Z, 22Z)
+            22Z = (22B, 22B)
+            XXX = (XXX, XXX)
+            "
+        };
+        let (directions, steps) = parse_input(input);
+        let exits: Vec<String> = steps
+            .keys()
+            .filter(|k| k.ends_with('Z'))
+            .map(|x| x.to_string())
+            .collect();
+        let res = exits_for_one_node("11A", &exits, &directions, &steps);
+        assert_eq!(res, 2);
+    }
+
+    #[test]
+    fn test_part2() {
+        let input = indoc! {
+            "LR
+
+            11A = (11B, XXX)
+            11B = (XXX, 11Z)
+            11Z = (11B, XXX)
+            22A = (22B, XXX)
+            22B = (22C, 22C)
+            22C = (22Z, 22Z)
+            22Z = (22B, 22B)
+            XXX = (XXX, XXX)
+            "
+        };
+        let result = part2(parse_input(input));
+        assert_eq!(result, 6)
+    }
 
     #[test]
     fn test_part1() {
