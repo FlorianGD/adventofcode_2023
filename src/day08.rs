@@ -1,6 +1,5 @@
-use std::collections::HashMap;
-
 use num::integer::lcm;
+use rustc_hash::FxHashMap as HashMap;
 use winnow::ascii::line_ending;
 use winnow::combinator::{alt, delimited, preceded, repeat, terminated};
 use winnow::token::take;

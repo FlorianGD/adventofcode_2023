@@ -1,5 +1,5 @@
 use num::complex::Complex;
-use std::collections::{HashMap, HashSet};
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 type Coord = Complex<isize>;
 
 type Symbols = HashMap<Coord, char>;
@@ -19,7 +19,7 @@ impl BBox {
         }
     }
     fn surroundings(&self) -> HashSet<Coord> {
-        let mut res = HashSet::new();
+        let mut res = HashSet::default();
         let right_limit = self.val.len() as isize + self.left.re;
         for p in self.left.re..right_limit {
             for j in -1..=1 {
@@ -40,7 +40,7 @@ impl BBox {
 }
 
 pub fn parse_input(input: &str) -> (Symbols, Numbers) {
-    let mut symbols: HashMap<Complex<isize>, char> = HashMap::new();
+    let mut symbols: HashMap<Complex<isize>, char> = HashMap::default();
     let mut numbers = Vec::new();
     input.lines().enumerate().for_each(|(j, line)| {
         line.chars()
@@ -92,7 +92,7 @@ pub fn part1((symbols, numbers): (Symbols, Numbers)) -> usize {
 
 pub fn part2((symbols, numbers): (Symbols, Numbers)) -> usize {
     let stars: Symbols = symbols.into_iter().filter(|(_, c)| *c == '*').collect();
-    let mut hm = HashMap::new();
+    let mut hm = HashMap::default();
     for bbox in numbers {
         for s in bbox.surroundings() {
             if stars.contains_key(&s) {

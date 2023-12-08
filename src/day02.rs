@@ -1,5 +1,6 @@
 use anyhow::Result;
-use std::{collections::HashMap, str::FromStr};
+use rustc_hash::FxHashMap as HashMap;
+use std::str::FromStr;
 use winnow::{
     ascii::digit1,
     combinator::{alt, delimited, separated, terminated},
@@ -95,7 +96,7 @@ pub fn part2(games: Vec<Game>) -> u32 {
     games
         .into_iter()
         .map(|g| {
-            let mut res = HashMap::from([
+            let mut res = HashMap::from_iter([
                 (Color::Red(0), 0_u32),
                 (Color::Green(0), 0_u32),
                 (Color::Blue(0), 0_u32),
