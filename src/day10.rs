@@ -1,6 +1,5 @@
-use itertools::Itertools;
 use num::complex::Complex;
-use std::collections::HashMap;
+use rustc_hash::FxHashMap as HashMap;
 type Coord = Complex<isize>;
 const LEFT: Coord = Complex::new(-1, 0);
 const RIGHT: Coord = Complex::new(1, 0);
@@ -72,19 +71,17 @@ pub fn part2((start, transitions): (Coord, HashMap<Coord, State>)) -> isize {
         .filter_map(|d| next(start, *d, &transitions))
         .next()
         .unwrap();
-    // start is not in the graph, so we made a round when we get None
-    // I do not know why I cannot assign pos and dir directly
+    // shoelace formula https://en.wikipedia.org/wiki/Shoelace_formula
+    // A &= \frac 1 2 \sum_{i=1}^n (y_i + y_{i+1})(x_i - x_{i+1})\\
+    let mut prev = start;
+    let mut area = 0;
+    let mut length = 1;
     while let Some(x) = next(pos, dir, &transitions) {
         (pos, dir) = x;
         graph.push(pos);
-    }
-    // shoelace formula https://en.wikipedia.org/wiki/Shoelace_formula
-    let mut area = 0;
-    let length = graph.len() as isize;
-    for (Complex { re: x_i1, im: y_i1 }, Complex { re: x_i2, im: y_i2 }) in
-        graph.into_iter().tuple_windows()
-    {
-        area += (y_i1 + y_i2) * (x_i1 - x_i2);
+        area += (pos.im + prev.im) * (prev.re - pos.re);
+        length += 1;
+        prev = pos;
     }
     (area.abs() - length) / 2 + ((area.abs() - length) % 2).signum()
 }
