@@ -33,6 +33,7 @@ const AOC: Aoc = Aoc {
         solution! {12, parser!{ day12::parse_input }, solver!{ day12::part1_recursive }},
         solution! {12, parser!{ day12::parse_input }, solver!{ day12::part2 }},
         solution! {13, parser!{ day13::parse_input }, solver!{ day13::part1 }},
+        solution! {13, parser!{ day13::parse_input }, solver!{ day13::part2 }},
     ],
 };
 

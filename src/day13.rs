@@ -1,8 +1,8 @@
 use itertools::equal;
 
-type Matrix = Vec<Vec<i8>>;
+type Matrix<T> = Vec<Vec<T>>;
 
-pub fn parse_input(input: &str) -> Vec<Matrix> {
+pub fn parse_input(input: &str) -> Vec<Matrix<i8>> {
     input
         .split("\n\n")
         .map(|block| {
@@ -13,7 +13,7 @@ pub fn parse_input(input: &str) -> Vec<Matrix> {
                         .map(|c| match c {
                             '.' => 0,
                             '#' => 1,
-                            _ => panic!("invalid input"),
+                            c => panic!("invalid input: {c:?}"),
                         })
                         .collect()
                 })
@@ -22,7 +22,7 @@ pub fn parse_input(input: &str) -> Vec<Matrix> {
         .collect()
 }
 
-fn find_symmetry(m: &Matrix) -> Option<usize> {
+fn find_symmetry(m: &Matrix<i8>) -> Option<usize> {
     let n = m.len();
     for span in 1..=n / 2 {
         if equal(m[0..span].iter(), m[span..2 * span].iter().rev()) {
@@ -38,7 +38,7 @@ fn find_symmetry(m: &Matrix) -> Option<usize> {
 }
 
 //https://stackoverflow.com/questions/64498617/how-to-transpose-a-vector-of-vectors-in-rust
-fn transpose<T>(v: Vec<Vec<T>>) -> Vec<Vec<T>> {
+fn transpose<T>(v: Matrix<T>) -> Matrix<T> {
     assert!(!v.is_empty());
     let len = v[0].len();
     let mut iters: Vec<_> = v.into_iter().map(|n| n.into_iter()).collect();
@@ -52,7 +52,7 @@ fn transpose<T>(v: Vec<Vec<T>>) -> Vec<Vec<T>> {
         .collect()
 }
 
-pub fn part1(input: Vec<Matrix>) -> usize {
+pub fn part1(input: Vec<Matrix<i8>>) -> usize {
     input
         .into_iter()
         .map(|m| match find_symmetry(&m) {
@@ -63,6 +63,51 @@ pub fn part1(input: Vec<Matrix>) -> usize {
             },
         })
         .sum()
+}
+
+pub fn part2(input: Vec<Matrix<i8>>) -> usize {
+    input
+        .into_iter()
+        .map(|m| match find_almost_symmetry(&m) {
+            Some(n) => 100 * n,
+            None => match find_almost_symmetry(&transpose(m)) {
+                Some(n) => n,
+                None => panic!("no symmetry found"),
+            },
+        })
+        .sum()
+}
+
+fn find_almost_symmetry(m: &Matrix<i8>) -> Option<usize> {
+    let n = m.len();
+    for span in 1..=n / 2 {
+        if (m[0..span].iter().zip(m[span..2 * span].iter().rev()))
+            .map(|(v1, v2)| {
+                v1.iter()
+                    .zip(v2.iter())
+                    .map(|(e1, e2)| (e1 - e2).abs())
+                    .sum::<i8>()
+            })
+            .sum::<i8>()
+            == 1
+        {
+            return Some(span);
+        } else if (m[n - 2 * span..n - span]
+            .iter()
+            .zip(m[n - span..n].iter().rev()))
+        .map(|(v1, v2)| {
+            v1.iter()
+                .zip(v2.iter())
+                .map(|(e1, e2)| (e1 - e2).abs())
+                .sum::<i8>()
+        })
+        .sum::<i8>()
+            == 1
+        {
+            return Some(n - span);
+        }
+    }
+    None
 }
 
 #[cfg(test)]
@@ -79,7 +124,8 @@ mod tests {
 
         ..##..##.
         #.#.##.#.
-            "};
+        "};
+        println!("{input}");
         let expected = vec![
             vec![
                 vec![1, 0, 1, 1, 0, 0, 1, 1, 0],
@@ -114,8 +160,8 @@ mod tests {
         };
 
         let parsed = parse_input(input);
-        let symetries = parsed.iter().map(|b| find_symmetry(b)).collect::<Vec<_>>();
-        assert_eq!(symetries, vec![None, Some(4)]);
+        let symmetries = parsed.iter().map(find_symmetry).collect::<Vec<_>>();
+        assert_eq!(symmetries, vec![None, Some(4)]);
     }
 
     #[test]
@@ -140,5 +186,54 @@ mod tests {
 
         let parsed = parse_input(input);
         assert_eq!(part1(parsed), 405);
+    }
+
+    #[test]
+    fn test_find_almost_symmetry() {
+        let input = indoc! {
+        "#.##..##.
+        ..#.##.#.
+        ##......#
+        ##......#
+        ..#.##.#.
+        ..##..##.
+        #.#.##.#.
+
+        #...##..#
+        #....#..#
+        ..##..###
+        #####.##.
+        #####.##.
+        ..##..###
+        #....#..#"
+        };
+
+        let parsed = parse_input(input);
+        let symmetries = parsed.iter().map(find_almost_symmetry).collect::<Vec<_>>();
+        assert_eq!(symmetries, vec![Some(3), Some(1)]);
+    }
+
+    #[test]
+    fn test_part2() {
+        let input = indoc! {
+        "#.##..##.
+        ..#.##.#.
+        ##......#
+        ##......#
+        ..#.##.#.
+        ..##..##.
+        #.#.##.#.
+
+        #...##..#
+        #....#..#
+        ..##..###
+        #####.##.
+        #####.##.
+        ..##..###
+        #....#..#"
+        };
+
+        let parsed = parse_input(input);
+        assert_eq!(part2(parsed), 400);
     }
 }
