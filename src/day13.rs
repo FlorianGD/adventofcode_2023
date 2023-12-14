@@ -1,3 +1,5 @@
+use crate::helpers::transpose;
+
 use itertools::equal;
 
 type Matrix<T> = Vec<Vec<T>>;
@@ -35,21 +37,6 @@ fn find_symmetry(m: &Matrix<i8>) -> Option<usize> {
         }
     }
     None
-}
-
-//https://stackoverflow.com/questions/64498617/how-to-transpose-a-vector-of-vectors-in-rust
-fn transpose<T>(v: Matrix<T>) -> Matrix<T> {
-    assert!(!v.is_empty());
-    let len = v[0].len();
-    let mut iters: Vec<_> = v.into_iter().map(|n| n.into_iter()).collect();
-    (0..len)
-        .map(|_| {
-            iters
-                .iter_mut()
-                .map(|n| n.next().unwrap())
-                .collect::<Vec<T>>()
-        })
-        .collect()
 }
 
 pub fn part1(input: Vec<Matrix<i8>>) -> usize {
