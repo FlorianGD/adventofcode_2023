@@ -105,7 +105,7 @@ pub fn part2(input: Vec<(String, Vec<usize>)>) -> usize {
         .into_iter()
         .map(|(line, groups)| {
             (
-                vec![line.clone(), line.clone(), line.clone() ,line.clone(), line].join("?"),
+                [line.clone(), line.clone(), line.clone(), line.clone(), line].join("?"),
                 repeat_n(groups, 5).flatten().collect::<Vec<_>>(),
             )
         })
