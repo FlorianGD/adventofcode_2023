@@ -25,7 +25,7 @@ pub fn part1(input: Vec<Vec<u8>>) -> usize {
     input.iter().map(|p| hash(p)).sum()
 }
 
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+#[derive(Clone)]
 pub struct Lens {
     label: String,
     focal: u8,
@@ -44,12 +44,11 @@ impl Lens {
     }
 }
 
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 enum Operation {
     Dash,
     Equal(u8),
 }
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+
 pub struct Instruction {
     label: String,
     operation: Operation,
