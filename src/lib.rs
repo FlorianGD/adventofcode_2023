@@ -15,3 +15,4 @@ pub mod day14;
 pub mod day15;
 pub mod helpers;
 pub mod parsers;
+pub mod day16;
