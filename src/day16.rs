@@ -80,8 +80,17 @@ fn next(dir: &Direction, m: &Move) -> Vec<Direction> {
 }
 
 pub fn part1((grid, bottom_right): (HashMap<Coord, Move>, Coord)) -> usize {
-    let pos = Complex::new(0, 0);
-    let dir = Direction::Right;
+    explore(&grid, Complex::new(0, 0), Direction::Right, bottom_right)
+}
+
+fn explore(
+    grid: &HashMap<Coord, Move>,
+    start: Coord,
+    starting_dir: Direction,
+    bottom_right: Coord,
+) -> usize {
+    let pos = start;
+    let dir = starting_dir;
     let mut seen = HashSet::default();
     let mut visited = HashSet::default();
     let mut positions = vec![(pos, dir)];
@@ -110,6 +119,35 @@ pub fn part1((grid, bottom_right): (HashMap<Coord, Move>, Coord)) -> usize {
     }
 
     seen.len()
+}
+
+pub fn part2((grid, bottom_right): (HashMap<Coord, Move>, Coord)) -> usize {
+    let mut max = 0;
+    // all entries from the top
+    for i in 0..bottom_right.re {
+        let start = Complex::new(i, 0);
+        let starting_dir = Direction::Down;
+        max = explore(&grid, start, starting_dir, bottom_right).max(max);
+    }
+    // all entries from the bottom
+    for i in 0..bottom_right.re {
+        let start = Complex::new(i, bottom_right.im);
+        let starting_dir = Direction::Up;
+        max = explore(&grid, start, starting_dir, bottom_right).max(max);
+    }
+    // all entries from the left
+    for j in 0..bottom_right.im {
+        let start = Complex::new(0, j);
+        let starting_dir = Direction::Right;
+        max = explore(&grid, start, starting_dir, bottom_right).max(max);
+    }
+    // all entries from the right
+    for j in 0..bottom_right.im {
+        let start = Complex::new(bottom_right.re, j);
+        let starting_dir = Direction::Up;
+        max = explore(&grid, start, starting_dir, bottom_right).max(max);
+    }
+    max
 }
 
 #[cfg(test)]
@@ -178,5 +216,22 @@ mod tests {
         "};
         let expected = 46;
         assert_eq!(part1(parse_input(input)), expected);
+    }
+    #[test]
+    fn test_part2() {
+        let input = indoc! {
+        r".|...\....
+        |.-.\.....
+        .....|-...
+        ........|.
+        ..........
+        .........\
+        ..../.\\..
+        .-.-/..|..
+        .|....-|.\
+        ..//.|....
+        "};
+        let expected = 51;
+        assert_eq!(part2(parse_input(input)), expected);
     }
 }
