@@ -5,16 +5,82 @@ use rustc_hash::FxHashMap as HashMap;
 type Coord = Complex<isize>;
 type Grid = HashMap<Coord, u32>;
 
-const LEFT: Coord = Complex::new(-1, 0);
 const RIGHT: Coord = Complex::new(1, 0);
 // imaginary axis is flipped
-const UP: Coord = Complex::new(0, -1);
 const DOWN: Coord = Complex::new(0, 1);
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 struct Pos {
     pos: Coord,
     prev_dir: Option<(Complex<isize>, u8)>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct Pos2 {
+    pos: Coord,
+    dir: Option<Coord>,
+}
+impl Pos2 {
+    fn new(pos: Coord, dir: Option<Complex<isize>>) -> Self {
+        Pos2 { pos, dir }
+    }
+
+    fn next_in_dir(&self, grid: &Grid, dir: Coord, bottom_right: Coord) -> Vec<(Self, u32)> {
+        let mut results = vec![];
+        // First, we try to go by 4 in the direction dir
+        let mut i = 0;
+        let mut cost = 0;
+        let mut new_pos = self.pos + dir;
+        while let Some(val) = grid.get(&new_pos) {
+            if i < 3 {
+                i += 1;
+                cost += val;
+                new_pos += dir;
+            } else {
+                break;
+            }
+        }
+        if new_pos.re < 0
+            || new_pos.re > bottom_right.re
+            || new_pos.im < 0
+            || new_pos.im > bottom_right.im
+        {
+            return vec![];
+        }
+        cost += grid.get(&new_pos).unwrap_or(&0);
+        // we just push the position where we are
+        results.push((Pos2::new(new_pos, Some(dir)), cost));
+        // Then, we try to add the next 6 elements in the same direction
+        while let Some(val) = grid.get(&(new_pos + dir)) {
+            if i < 9 {
+                i += 1;
+                cost += val;
+                new_pos += dir;
+                results.push((Pos2::new(new_pos, Some(dir)), cost));
+            } else {
+                break;
+            }
+        }
+        results
+    }
+
+    fn successors_p2(&self, grid: &Grid, bottom_right: Coord) -> Vec<(Self, u32)> {
+        let mut results = vec![];
+
+        match self.dir {
+            None => {
+                results.extend(self.next_in_dir(grid, RIGHT, bottom_right));
+                results.extend(self.next_in_dir(grid, DOWN, bottom_right));
+            }
+            Some(dir) => {
+                let rotated_left = dir * Complex::new(0, 1);
+                results.extend(self.next_in_dir(grid, rotated_left, bottom_right));
+                let rotated_right = dir * Complex::new(0, -1);
+                results.extend(self.next_in_dir(grid, rotated_right, bottom_right));
+            }
+        }
+        results
+    }
 }
 
 impl Pos {
@@ -35,52 +101,6 @@ impl Pos {
                     (
                         Pos::new(self.pos + DOWN, Some((DOWN, 1))),
                         *grid.get(&(self.pos + DOWN)).unwrap(),
-                    ),
-                ];
-            }
-            Some((dir, count)) => {
-                let rotated_left = self.pos + dir * Complex::new(0, 1);
-                let rotated_right = self.pos + dir * Complex::new(0, -1);
-                let in_front = self.pos + dir;
-                if let Some(val) = grid.get(&rotated_left) {
-                    results.push((
-                        Pos::new(rotated_left, Some((dir * Complex::new(0, 1), 1))),
-                        *val,
-                    ));
-                }
-                if let Some(val) = grid.get(&rotated_right) {
-                    results.push((
-                        Pos::new(rotated_right, Some((dir * Complex::new(0, -1), 1))),
-                        *val,
-                    ));
-                }
-                if let Some(val) = grid.get(&in_front) {
-                    if count < 3 {
-                        results.push((Pos::new(in_front, Some((dir, count + 1))), *val));
-                    }
-                }
-            }
-        }
-        results
-    }
-    fn successors_p2(&self, grid: &Grid) -> Vec<(Self, u32)> {
-        let mut results = vec![];
-        // rotate left is still in bounds
-        match self.prev_dir {
-            None => {
-                // first position only
-                return vec![
-                    (
-                        Pos::new(self.pos + RIGHT, Some((RIGHT, 4))),
-                        (1..=4)
-                            .map(|i| *grid.get(&(self.pos + i * RIGHT)).unwrap())
-                            .sum(),
-                    ),
-                    (
-                        Pos::new(self.pos + DOWN, Some((DOWN, 4))),
-                        (1..=4)
-                            .map(|i| *grid.get(&(self.pos + i * DOWN)).unwrap())
-                            .sum(),
                     ),
                 ];
             }
@@ -142,12 +162,26 @@ pub fn part1((grid, bottom_right): (Grid, Coord)) -> u32 {
     }
 }
 
+pub fn part2((grid, bottom_right): (Grid, Coord)) -> u32 {
+    let initial_pos = Pos2::new(Complex::new(0, 0), None);
+    if let Some((_path, cost)) = dijkstra(
+        &initial_pos,
+        |p| p.successors_p2(&grid, bottom_right),
+        |p| p.pos == bottom_right,
+    ) {
+        cost
+    } else {
+        panic!("no result found")
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use indoc::indoc;
     use pretty_assertions::assert_eq;
 
+    const LEFT: Coord = Complex::new(-1, 0);
     fn get_input() -> &'static str {
         indoc! {
             "2413432311323
@@ -212,6 +246,37 @@ mod tests {
     #[test]
     fn test_part1() {
         let input = get_input();
-        assert_eq!(part1(parse_input(input)), 102)
+        assert_eq!(part1(parse_input(input)), 102);
+    }
+
+    #[test]
+    fn test_successors_p2() {
+        let input = get_input();
+        let (grid, bottom_right) = parse_input(input);
+        let pos = Pos2::new(Complex::new(0, 0), None);
+        let successors = pos.successors_p2(&grid, bottom_right);
+        assert_eq!(successors.len(), 14);
+        // let successors = Pos2::new(bottom_right, Some(RIGHT)).successors_p2(&grid, bottom_right);
+        // assert_eq!(successors, vec![]);
+    }
+
+    #[test]
+    fn test_part2() {
+        let input = get_input();
+        let result = part2(parse_input(input));
+        assert_eq!(result, 94);
+    }
+    #[test]
+    fn test_part2_edge_case() {
+        let input = indoc! {
+            "
+            111111111111
+            999999999991
+            999999999991
+            999999999991
+            999999999991"
+        };
+        let result = part2(parse_input(input));
+        assert_eq!(result, 71);
     }
 }
