@@ -20,3 +20,4 @@ pub mod day19;
 pub mod day20;
 pub mod helpers;
 pub mod parsers;
+pub mod day21;
