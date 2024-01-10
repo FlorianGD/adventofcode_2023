@@ -1,4 +1,5 @@
 use itertools::Itertools;
+use rustc_hash::FxHashSet;
 
 use std::{fmt::Debug, str::FromStr};
 use winnow::{
@@ -128,7 +129,7 @@ impl Brick {
             (Span::Y(_), Span::Z(_)) => other.distance_z(self).map(|i| -i),
             (Span::X(n1), Span::X(n2)) => {
                 if y1 == y2 {
-                    if (x1 >= x2 && x1 <= x1 + n2) || (x2 >= x1 && x2 <= x2 + n1) {
+                    if (x1 >= x2 && x1 <= x2 + n2) || (x2 >= x1 && x2 <= x1 + n1) {
                         Some(z1 - z2)
                     } else {
                         None
@@ -139,7 +140,7 @@ impl Brick {
             }
             (Span::Y(n1), Span::Y(n2)) => {
                 if x1 == x2 {
-                    if (y1 >= y2 && y1 <= y1 + n2) || (y2 >= y1 && y2 <= y2 + n1) {
+                    if (y1 >= y2 && y1 <= y2 + n2) || (y2 >= y1 && y2 <= y1 + n1) {
                         Some(z1 - z2)
                     } else {
                         None
@@ -218,59 +219,19 @@ pub fn part1(bricks: Vec<Brick>) -> usize {
         .sorted_by_key(|x: &Brick| x.coord.2)
         .collect_vec();
 
-    bricks
-        .iter()
-        .map(|b| {
-            let brick_level = match b.span {
-                Span::Z(n) => b.coord.2 + n,
-                _ => b.coord.2,
-            };
-            let above = bricks
-                .iter()
-                .filter(|br| br.coord.2 == brick_level + 1)
-                .collect_vec();
-            dbg!(&above);
-            if above.is_empty() {
-                println!("Safe to discard {b:?}");
-                1
-            } else {
-                let same_level = bricks
-                    .iter()
-                    .filter(|br| {
-                        br != &b
-                            && match br.span {
-                                Span::Z(n) => br.coord.2 + n == brick_level,
-                                _ => br.coord.2 == brick_level,
-                            }
-                    })
-                    .collect_vec();
-                if same_level.is_empty() {
-                    0
-                } else {
-                    dbg!(&same_level);
-                    if above.iter().any(|&brick_above| {
-                        same_level.iter().all(|&brick_same_level| {
-                            brick_above.distance_z(brick_same_level).is_none()
-                        })
-                    }) {
-                        println!("NOT Safe to discard {b:?}");
-                        dbg!(above
-                            .iter()
-                            .filter(|&brick_above| {
-                                same_level.iter().all(|&brick_same_level| {
-                                    brick_above.distance_z(brick_same_level).is_none()
-                                })
-                            })
-                            .collect_vec());
-                        0
-                    } else {
-                        println!("Safe to discard {b:?}");
-                        1
-                    }
-                }
-            }
-        })
-        .sum()
+    let mut not_safe = FxHashSet::default();
+    for b in bricks.iter() {
+        let just_below = bricks
+            .iter()
+            .filter(|br| br.distance_z(b) == Some(-1))
+            .collect_vec();
+        if just_below.len() == 1 {
+            not_safe.insert(just_below[0]);
+        }
+    }
+    // dbg!(&not_safe);
+    bricks.len() - not_safe.len()
+}
 }
 
 #[cfg(test)]
@@ -300,15 +261,40 @@ mod tests {
     #[test]
     fn test_distance_z_span_none() {
         let b = Brick::new((1, 0, 1), Span::None);
+
         let b2 = Brick::new((1, 0, 3), Span::None);
         assert_eq!(b.distance_z(&b2), Some(-2));
+
         let b2 = Brick::new((1, 1, 3), Span::None);
         assert_eq!(b.distance_z(&b2), None);
+
         let b2 = Brick::new((2, 0, 3), Span::None);
         assert_eq!(b.distance_z(&b2), None);
+
         let b2 = Brick::new((1, 0, 2), Span::Z(1));
         assert_eq!(b.distance_z(&b2), Some(-1));
+
         let b2 = Brick::new((1, 0, 6), Span::None);
+        let b3 = Brick::new((1, 0, 2), Span::Z(2));
+        assert_eq!(b2.distance_z(&b3), Some(2));
+    }
+    #[test]
+    fn test_distance_z_span_z() {
+        let b = Brick::new((1, 0, 1), Span::Z(1));
+
+        let b2 = Brick::new((1, 0, 3), Span::None);
+        assert_eq!(b.distance_z(&b2), Some(-1));
+
+        let b2 = Brick::new((1, 1, 3), Span::None);
+        assert_eq!(b.distance_z(&b2), None);
+
+        let b2 = Brick::new((1, -1, 3), Span::Y(1));
+        assert_eq!(b.distance_z(&b2), Some(-1));
+
+        let b2 = Brick::new((0, 0, 3), Span::X(1));
+        assert_eq!(b.distance_z(&b2), Some(-1));
+
+        let b2 = Brick::new((1, 0, 6), Span::Z(1));
         let b3 = Brick::new((1, 0, 2), Span::Z(2));
         assert_eq!(b2.distance_z(&b3), Some(2));
     }
@@ -336,4 +322,5 @@ mod tests {
         let bricks = parse_input(input);
         assert_eq!(part1(bricks), 5);
     }
+
 }
