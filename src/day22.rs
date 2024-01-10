@@ -1,7 +1,6 @@
-use itertools::Itertools;
-use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
-
 use crate::parsers::num;
+use itertools::Itertools;
+use rustc_hash::FxHashSet as HashSet;
 use std::{fmt::Debug, str::FromStr};
 use winnow::{
     combinator::{separated_pair, terminated},
@@ -239,7 +238,7 @@ fn not_safe_bricks(bricks: &[Brick]) -> HashSet<Brick> {
     not_safe
 }
 
-fn rested_on(bricks: &[Brick]) -> HashMap<Brick, Vec<Brick>> {
+fn rested_on(bricks: &[Brick]) -> Vec<(Brick, Vec<Brick>)> {
     bricks
         .iter()
         .map(|b| {
@@ -254,7 +253,7 @@ fn rested_on(bricks: &[Brick]) -> HashMap<Brick, Vec<Brick>> {
         .collect()
 }
 
-fn cascading_remove(to_remove: &[Brick], rested_on: HashMap<Brick, Vec<Brick>>) -> usize {
+fn cascading_remove(to_remove: &[Brick], rested_on: Vec<(Brick, Vec<Brick>)>) -> usize {
     if to_remove.is_empty() {
         return 0;
     }
@@ -264,7 +263,7 @@ fn cascading_remove(to_remove: &[Brick], rested_on: HashMap<Brick, Vec<Brick>>) 
         for (_, v) in rested.iter_mut() {
             v.retain(|b| b != val);
         }
-        rested.remove(val);
+        rested.retain(|(k, _)| k != val);
     }
 
     let new_to_remove = rested
@@ -272,7 +271,7 @@ fn cascading_remove(to_remove: &[Brick], rested_on: HashMap<Brick, Vec<Brick>>) 
         .filter(|(_, v)| v.is_empty())
         .map(|(k, _)| k.clone())
         .collect_vec();
-    new_to_remove.len() + cascading_remove(&new_to_remove, rested.clone())
+    new_to_remove.len() + cascading_remove(&new_to_remove, rested)
 }
 
 pub fn part2(bricks: Vec<Brick>) -> usize {
@@ -281,10 +280,7 @@ pub fn part2(bricks: Vec<Brick>) -> usize {
         .sorted_by_key(|x: &Brick| x.coord.2)
         .collect_vec();
 
-    let not_safe = not_safe_bricks(&bricks)
-        .into_iter()
-        .sorted_by_key(|x| -x.coord.2)
-        .collect_vec();
+    let not_safe = not_safe_bricks(&bricks);
     let base_rested_on = rested_on(&bricks);
     not_safe
         .iter()
