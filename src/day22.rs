@@ -1,13 +1,12 @@
 use itertools::Itertools;
-use rustc_hash::FxHashSet;
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
+use crate::parsers::num;
 use std::{fmt::Debug, str::FromStr};
 use winnow::{
     combinator::{separated_pair, terminated},
     PResult, Parser,
 };
-
-use crate::parsers::num;
 
 type Coord = (isize, isize, isize);
 
@@ -54,6 +53,9 @@ impl Brick {
 
     /// None if not on the same plane, Some(i), i > 0 if self is above other
     fn distance_z(&self, other: &Self) -> Option<isize> {
+        if self == other {
+            return Some(0);
+        }
         let (x1, y1, z1) = self.coord;
         let (x2, y2, z2) = other.coord;
         match (self.span, other.span) {
@@ -219,19 +221,75 @@ pub fn part1(bricks: Vec<Brick>) -> usize {
         .sorted_by_key(|x: &Brick| x.coord.2)
         .collect_vec();
 
-    let mut not_safe = FxHashSet::default();
+    let not_safe = not_safe_bricks(&bricks);
+    bricks.len() - not_safe.len()
+}
+
+fn not_safe_bricks(bricks: &[Brick]) -> HashSet<Brick> {
+    let mut not_safe = HashSet::default();
     for b in bricks.iter() {
         let just_below = bricks
             .iter()
             .filter(|br| br.distance_z(b) == Some(-1))
             .collect_vec();
         if just_below.len() == 1 {
-            not_safe.insert(just_below[0]);
+            not_safe.insert(just_below[0].clone());
         }
     }
-    // dbg!(&not_safe);
-    bricks.len() - not_safe.len()
+    not_safe
 }
+
+fn rested_on(bricks: &[Brick]) -> HashMap<Brick, Vec<Brick>> {
+    bricks
+        .iter()
+        .map(|b| {
+            let just_below = bricks
+                .iter()
+                .filter(|br| br.distance_z(b) == Some(-1))
+                .cloned()
+                .collect_vec();
+            (b.clone(), just_below)
+        })
+        .filter(|(_, v)| !v.is_empty())
+        .collect()
+}
+
+fn cascading_remove(to_remove: &[Brick], rested_on: HashMap<Brick, Vec<Brick>>) -> usize {
+    if to_remove.is_empty() {
+        return 0;
+    }
+    let mut rested = rested_on;
+
+    for val in to_remove {
+        for (_, v) in rested.iter_mut() {
+            v.retain(|b| b != val);
+        }
+        rested.remove(val);
+    }
+
+    let new_to_remove = rested
+        .iter()
+        .filter(|(_, v)| v.is_empty())
+        .map(|(k, _)| k.clone())
+        .collect_vec();
+    new_to_remove.len() + cascading_remove(&new_to_remove, rested.clone())
+}
+
+pub fn part2(bricks: Vec<Brick>) -> usize {
+    let bricks = settle_down(&bricks)
+        .into_iter()
+        .sorted_by_key(|x: &Brick| x.coord.2)
+        .collect_vec();
+
+    let not_safe = not_safe_bricks(&bricks)
+        .into_iter()
+        .sorted_by_key(|x| -x.coord.2)
+        .collect_vec();
+    let base_rested_on = rested_on(&bricks);
+    not_safe
+        .iter()
+        .map(|b| cascading_remove(&[b.clone()], base_rested_on.clone()))
+        .sum()
 }
 
 #[cfg(test)]
@@ -323,4 +381,10 @@ mod tests {
         assert_eq!(part1(bricks), 5);
     }
 
+    #[test]
+    fn test_part2() {
+        let input = data();
+        let bricks = parse_input(input);
+        assert_eq!(part2(bricks), 7);
+    }
 }
